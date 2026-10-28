@@ -5,6 +5,7 @@ import argparse
 # Adiciona o diretório atual ao PYTHONPATH
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from version import __version__, __app_name__
 from config.settings import ALLOWED_EXTENSIONS, DEFAULT_IGNORE_DIRS, DEFAULT_IGNORE_FILES, is_test_file
 from core.filters import FileFilter
 from core.scanner import Scanner
@@ -19,6 +20,7 @@ def run_cli(target_dir: str):
         sys.exit(1)
 
     project_name = os.path.basename(os.path.normpath(root_path))
+    print(f"==> {__app_name__} v{__version__}")
     print(f"==> Iniciando processamento do projeto: {project_name}")
     print(f"==> Diretório: {root_path}")
 
@@ -78,15 +80,17 @@ def run_gui():
         app.setWindowIcon(QIcon(icon_path))
     
     window = MainWindow()
+    window.setWindowTitle(f"{__app_name__} v{__version__}")
     if os.path.exists(icon_path):
         window.setWindowIcon(QIcon(icon_path))
     window.show()
     sys.exit(app.exec())
 
 def main():
-    parser = argparse.ArgumentParser(description="Update-Project: AI Codebase Context Packer & Project Archiver")
+    parser = argparse.ArgumentParser(description=f"{__app_name__}: AI Codebase Context Packer & Project Archiver")
     parser.add_argument("path", nargs="?", default=None, help="Caminho do projeto para processar via linha de comando (modo CLI)")
     parser.add_argument("--cli", action="store_true", help="Força a execução via linha de comando no diretório atual")
+    parser.add_argument("-v", "--version", action="version", version=f"{__app_name__} {__version__}")
 
     args = parser.parse_args()
 
