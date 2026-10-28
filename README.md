@@ -1,6 +1,11 @@
 # Update-Project 📦🔍
 
-A Python utility and GUI tool designed to aggregate entire codebases into structured context files for AI audits, LLM code reviews, and clean distribution archives.
+[![Tests](https://github.com/hadelrachid/update-project/actions/workflows/tests.yml/badge.svg)](https://github.com/hadelrachid/update-project/actions/workflows/tests.yml)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/hadelrachid/update-project/releases/tag/v1.0.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python: 3.10+](https://img.shields.io/badge/python-3.10+-green.svg)](https://www.python.org/)
+
+A Python utility and desktop GUI tool designed to aggregate entire codebases into structured context files for AI audits, LLM code reviews, and clean distribution archives.
 
 ---
 
@@ -25,7 +30,7 @@ You can then attach `{project_name}.txt` directly to any AI tool to perform comp
 ### 🚀 Getting Started
 
 #### Requirements
-- Python 3.9+
+- Python 3.10+
 - Dependencies listed in `requirements.txt` (PySide6 for GUI mode)
 
 ```bash
@@ -50,6 +55,21 @@ Select your project folder, pick or exclude files using the tree view, and click
 Process any project directly from the terminal without opening a window:
 ```bash
 python main.py /path/to/your/project
+```
+
+Check the version anytime:
+```bash
+python main.py --version
+```
+
+---
+
+### 🧪 Running Tests
+
+To run the automated test suite locally:
+
+```bash
+python -m unittest discover -s tests
 ```
 
 ---
@@ -98,6 +118,9 @@ python main.py
 
 # Executar via linha de comando (CLI)
 python main.py "C:\caminho\do\seu\projeto"
+
+# Executar testes automatizados
+python -m unittest discover -s tests
 ```
 
 ---

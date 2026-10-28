@@ -1,7 +1,7 @@
 /* ====================================================================== */
 /* PROJETO: update-project
-/* DATA DE GERAÇÃO: 2026-10-28 19:07:45
-/* TOTAL DE ARQUIVOS CONSOLIDADOS: 19
+/* DATA DE GERAÇÃO: 2026-10-28 19:31:08
+/* TOTAL DE ARQUIVOS CONSOLIDADOS: 20
 /* FERRAMENTA: Update-Project (Codebase Context Packer)
 /* FINALIDADE: Auditoria de código, revisão estática e contexto para IAs (LLMs)
 /* ====================================================================== */
@@ -11,6 +11,9 @@
 /* ---------------------------------------------------------------------- */
 
 📦 update-project/
+├── 📁 .github/
+│   └── 📁 workflows/
+│       └── ⚙️ tests.yml
 ├── 📁 config/
 │   ├── 🐍 __init__.py
 │   └── 🐍 settings.py
@@ -43,12 +46,56 @@
 /* ====================================================================== */
 
 /* ---------------------------------------------------------------------- */
+// Arquivo: update-project/.github/workflows/tests.yml
+/* ---------------------------------------------------------------------- */
+
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Unit Tests
+      run: |
+        python -m unittest discover -s tests
+
+
+/* ---------------------------------------------------------------------- */
 // Arquivo: update-project/README.md
 /* ---------------------------------------------------------------------- */
 
 # Update-Project 📦🔍
 
-A Python utility and GUI tool designed to aggregate entire codebases into structured context files for AI audits, LLM code reviews, and clean distribution archives.
+[![Tests](https://github.com/hadelrachid/update-project/actions/workflows/tests.yml/badge.svg)](https://github.com/hadelrachid/update-project/actions/workflows/tests.yml)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/hadelrachid/update-project/releases/tag/v1.0.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python: 3.10+](https://img.shields.io/badge/python-3.10+-green.svg)](https://www.python.org/)
+
+A Python utility and desktop GUI tool designed to aggregate entire codebases into structured context files for AI audits, LLM code reviews, and clean distribution archives.
 
 ---
 
@@ -73,7 +120,7 @@ You can then attach `{project_name}.txt` directly to any AI tool to perform comp
 ### 🚀 Getting Started
 
 #### Requirements
-- Python 3.9+
+- Python 3.10+
 - Dependencies listed in `requirements.txt` (PySide6 for GUI mode)
 
 ```bash
@@ -98,6 +145,21 @@ Select your project folder, pick or exclude files using the tree view, and click
 Process any project directly from the terminal without opening a window:
 ```bash
 python main.py /path/to/your/project
+```
+
+Check the version anytime:
+```bash
+python main.py --version
+```
+
+---
+
+### 🧪 Running Tests
+
+To run the automated test suite locally:
+
+```bash
+python -m unittest discover -s tests
 ```
 
 ---
@@ -146,6 +208,9 @@ python main.py
 
 # Executar via linha de comando (CLI)
 python main.py "C:\caminho\do\seu\projeto"
+
+# Executar testes automatizados
+python -m unittest discover -s tests
 ```
 
 ---
