@@ -1,0 +1,1414 @@
+/* ====================================================================== */
+/* PROJETO: update-project
+/* DATA DE GERAÇÃO: 2026-10-28 18:48:25
+/* TOTAL DE ARQUIVOS CONSOLIDADOS: 18
+/* FERRAMENTA: Update-Project (Codebase Context Packer)
+/* FINALIDADE: Auditoria de código, revisão estática e contexto para IAs (LLMs)
+/* ====================================================================== */
+
+/* ---------------------------------------------------------------------- */
+/* ESTRUTURA DO PROJETO (ÁRVORE DE ARQUIVOS)
+/* ---------------------------------------------------------------------- */
+
+📦 update-project/
+├── 📄 .gitignore
+├── 📄 icon.ico
+├── 📄 LICENSE
+├── 🐍 main.py
+├── 📝 README.md
+├── 📝 requirements.txt
+└── 📄 UpdateProject.spec
+
+/* ====================================================================== */
+/* CONTEÚDO DOS ARQUIVOS DO PROJETO
+/* ====================================================================== */
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/README.md
+/* ---------------------------------------------------------------------- */
+
+# Update-Project 📦🔍
+
+A Python utility and GUI tool designed to aggregate entire codebases into structured context files for AI audits, LLM code reviews, and clean distribution archives.
+
+---
+
+[🇧🇷 Ler em Português](#-visão-geral-em-português) | [🇺🇸 English Overview](#-english-overview)
+
+---
+
+## 🇺🇸 English Overview
+
+### The Problem
+When working with Large Language Models (ChatGPT, Claude, Gemini, DeepSeek, etc.) on medium-to-large projects, AI models frequently suffer from **context fragmentation**. Because they cannot inspect hundreds of scattered files simultaneously without losing attention, code audits often lead to hallucinations, false assumptions, or missed architectural contracts.
+
+### The Solution
+**Update-Project** scans your project, applies clean exclusion rules (ignoring vendor folders, cache, and build artifacts), and generates:
+1. **A Structured Context File (`{project_name}.txt` and `project.txt`)**: Contains the complete directory tree followed by the full source code of each file, cleanly demarcated with file path headers.
+2. **A Clean Project Archive (`{project_name}.zip`)**: A ready-to-deploy zip archive containing only valid source files.
+
+You can then attach `{project_name}.txt` directly to any AI tool to perform complete, zero-hallucination code audits and architectural reviews.
+
+---
+
+### 🚀 Getting Started
+
+#### Requirements
+- Python 3.9+
+- Dependencies listed in `requirements.txt` (PySide6 for GUI mode)
+
+```bash
+# 1. Clone repository
+git clone https://github.com/hadelrachid/update-project.git
+cd update-project
+
+# 2. Install dependencies
+pip install -r requirements.txt
+```
+
+#### Usage Modes
+
+**1. Graphical Interface (GUI Mode):**
+Simply run without arguments to open the desktop application:
+```bash
+python main.py
+```
+Select your project folder, pick or exclude files using the tree view, and click **Processar**.
+
+**2. Command Line Interface (CLI Mode):**
+Process any project directly from the terminal without opening a window:
+```bash
+python main.py /path/to/your/project
+```
+
+---
+
+### 🤖 How to Audit Codebases with AI using the Output
+
+1. Run **Update-Project** on your codebase.
+2. Locate the generated `{project_name}.txt` in your project folder.
+3. Attach `{project_name}.txt` to your preferred AI model (Claude, ChatGPT, Gemini, etc.).
+4. Use a structured audit prompt such as:
+   ```text
+   You are a senior software architect. Analyze the attached consolidated codebase context file.
+   Verify:
+   1. Consistency of interface contracts and dependency injection.
+   2. Input validation, sanitization, and potential security vulnerabilities.
+   3. Adherence to Clean Architecture and test coverage.
+   Provide a strict, professional technical audit report.
+   ```
+
+---
+
+<br>
+
+## 🇧🇷 Visão Geral em Português
+
+### O Problema
+Ao auditar ou refatorar projetos com modelos de Inteligência Artificial (ChatGPT, Claude, Gemini, DeepSeek), as IAs frequentemente sofrem de **amnésia de contexto** em projetos com dezenas ou centenas de arquivos separados, gerando análises superficiais ou suposições incorretas.
+
+### A Solução
+O **Update-Project** escaneia o repositório, aplica filtros de exclusão inteligentes (ignorando pastas de build, cache e dependências externas) e gera:
+1. **Arquivo Estruturado de Contexto (`{project_name}.txt` e `project.txt`)**: Reúne a árvore de arquivos e o código-fonte integral de cada componente com separadores bem definidos.
+2. **Arquivo ZIP de Distribuição (`{project_name}.zip`)**: Pacote limpo contendo apenas os arquivos de código válidos.
+
+Com isso, você pode anexar o arquivo consolidado em qualquer IA e obter uma auditoria completa com contexto global da arquitetura.
+
+---
+
+### 🚀 Instalação e Execução
+
+```bash
+# Instalar dependências
+pip install -r requirements.txt
+
+# Executar com interface gráfica (GUI)
+python main.py
+
+# Executar via linha de comando (CLI)
+python main.py "C:\caminho\do\seu\projeto"
+```
+
+---
+
+## 📄 Licença
+
+Distribuído sob a licença [MIT](LICENSE).
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/config/__init__.py
+/* ---------------------------------------------------------------------- */
+
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/config/settings.py
+/* ---------------------------------------------------------------------- */
+
+# config/settings.py
+
+ALLOWED_EXTENSIONS = (
+    '.php', '.css', '.js', '.txt', '.json', '.md', '.html', '.py', '.xml', '.sql',
+    '.yml', '.yaml', '.ini', '.sh', '.bash', '.ts', '.tsx', '.jsx', '.vue'
+)
+
+DEFAULT_IGNORE_DIRS = [
+    '.git', '.vscode', '.idea', '__pycache__', 'node_modules', 'tests', 'temp',
+    'auditoria', 'wiki', 'docs', 'vendor', '.phpunit.cache', 'dist', 'build',
+    '.kilo', '.system_generated', 'scratch', 'storage'
+]
+
+DEFAULT_IGNORE_FILES = [
+    'project.txt', '.env', 'database.sqlite', '.phpunit.result.cache',
+    'update_project.py', '.DS_Store', 'Thumbs.db'
+]
+
+def is_test_file(filename: str) -> bool:
+    name = filename.lower()
+    return name.startswith('test-') or name.startswith('test_') or name == 'test.php'
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/core/__init__.py
+/* ---------------------------------------------------------------------- */
+
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/core/compressor.py
+/* ---------------------------------------------------------------------- */
+
+import os
+import zipfile
+import tempfile
+import shutil
+from typing import List, Callable
+from core.filters import FileFilter
+
+class Compressor:
+    def compress(self, root_path: str, selected_paths: set, file_filter: FileFilter, output_zip_path: str, progress_callback: Callable[[int, int, str], None] = None):
+        """
+        Cria o arquivo ZIP.
+        """
+        # Passo 1: Filtrar arquivos válidos com base na lista de selecionados
+        files_to_zip = []
+        for root, dirs, files in os.walk(root_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                
+                # Feedback de preparação
+                if progress_callback:
+                    progress_callback(0, 0, f"Preparando ZIP: {file}")
+                
+                # Guarda de trânsito: Verifica exceções
+                if file_filter.should_ignore_file(file):
+                    continue
+                
+                # Só compacta se o arquivo em si estiver na lista de selecionados.
+                if file_path in selected_paths:
+                    arcname = os.path.relpath(file_path, root_path)
+                    files_to_zip.append((file_path, arcname))
+        
+        total_zip = len(files_to_zip)
+        zip_count = 0
+
+        if total_zip == 0:
+            if progress_callback:
+                progress_callback(0, 0, "Nenhum arquivo selecionado para compactação.")
+            return
+
+        import tempfile
+        import shutil
+
+        temp_dir = tempfile.gettempdir()
+        project_name = os.path.basename(os.path.normpath(root_path))
+        temp_zip_base = os.path.join(temp_dir, f"{project_name}_temp.zip")
+
+        if os.path.exists(output_zip_path):
+            os.remove(output_zip_path)
+
+        with zipfile.ZipFile(temp_zip_base, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for file_path, arcname in files_to_zip:
+                # Evitar falhas se o arquivo de destino (zip antigo) tiver sido marcado
+                # e removido pelo os.remove acima.
+                if os.path.abspath(file_path) == os.path.abspath(output_zip_path):
+                    continue
+                
+                zip_count += 1
+                if progress_callback:
+                    progress_callback(zip_count, total_zip, arcname)
+                zipf.write(file_path, arcname)
+
+        shutil.move(temp_zip_base, output_zip_path)
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/core/filters.py
+/* ---------------------------------------------------------------------- */
+
+import fnmatch
+import os
+
+class FileFilter:
+    def __init__(self, ignore_patterns: list, default_ignore_files: set, default_ignore_dirs: set, allowed_extensions: tuple):
+        self.ignore_patterns = ignore_patterns if ignore_patterns else []
+        self.default_ignore_files = default_ignore_files
+        self.default_ignore_dirs = default_ignore_dirs
+        self.allowed_extensions = allowed_extensions
+
+    def should_ignore_file(self, filename: str, is_test: bool = False) -> bool:
+        if filename in self.default_ignore_files or filename.endswith('.tmp'):
+            return True
+        if is_test:
+            return True
+        for pattern in self.ignore_patterns:
+            if fnmatch.fnmatch(filename.lower(), pattern.lower()):
+                return True
+        return False
+
+    def should_ignore_dir(self, dirname: str) -> bool:
+        if dirname in self.default_ignore_dirs:
+            return True
+        for pattern in self.ignore_patterns:
+            if fnmatch.fnmatch(dirname.lower(), pattern.lower()):
+                return True
+        return False
+
+    def is_allowed_for_report(self, filepath: str) -> bool:
+        if not os.path.isfile(filepath):
+            return False
+        if not filepath.endswith(self.allowed_extensions):
+            return False
+        if filepath.endswith('.min.css') or filepath.endswith('.min.js'):
+            return False
+        
+        filename = os.path.basename(filepath)
+        for pattern in self.ignore_patterns:
+            if fnmatch.fnmatch(filename.lower(), pattern.lower()):
+                return False
+        return True
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/core/models.py
+/* ---------------------------------------------------------------------- */
+
+import os
+from typing import List, Optional
+
+class FileNode:
+    """Representa um arquivo ou diretório na árvore escaneada."""
+    def __init__(self, name: str, path: str, is_dir: bool):
+        self.name = name
+        self.path = path
+        self.is_dir = is_dir
+        self.children: List['FileNode'] = []
+        # Para diretórios, indica se ele foi completamente ignorado nas configurações
+        self.is_ignored = False 
+
+    def add_child(self, child: 'FileNode'):
+        self.children.append(child)
+
+    def sort_children(self):
+        """Ordena: Pastas primeiro, depois arquivos alfabeticamente."""
+        self.children.sort(key=lambda x: (not x.is_dir, x.name.lower()))
+        for child in self.children:
+            if child.is_dir:
+                child.sort_children()
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/core/report.py
+/* ---------------------------------------------------------------------- */
+
+import os
+from datetime import datetime
+from typing import Callable, List
+from core.tree_formatter import TreeFormatter
+from core.filters import FileFilter
+
+class ReportGenerator:
+    def generate(self, root_path: str, selected_paths: set, file_filter: FileFilter, output_file: str, progress_callback: Callable[[int, int, str], None] = None):
+        tree_str = TreeFormatter.get_tree_string(root_path, selected_paths, progress_callback)
+        
+        files_to_read = []
+        for p in selected_paths:
+            if file_filter.is_allowed_for_report(p):
+                # Evita ler o próprio arquivo de saída se já existir
+                if os.path.abspath(p) == os.path.abspath(output_file):
+                    continue
+                files_to_read.append(p)
+        
+        files_to_read.sort()
+        total_files = len(files_to_read)
+        project_name = os.path.basename(os.path.normpath(root_path))
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        with open(output_file, 'w', encoding='utf-8') as f_out:
+            # Cabeçalho estruturado para LLMs / IAs e auditoria
+            f_out.write("/* " + "="*70 + " */\n")
+            f_out.write(f"/* PROJETO: {project_name}\n")
+            f_out.write(f"/* DATA DE GERAÇÃO: {now_str}\n")
+            f_out.write(f"/* TOTAL DE ARQUIVOS CONSOLIDADOS: {total_files}\n")
+            f_out.write("/* FERRAMENTA: Update-Project (Codebase Context Packer)\n")
+            f_out.write("/* FINALIDADE: Auditoria de código, revisão estática e contexto para IAs (LLMs)\n")
+            f_out.write("/* " + "="*70 + " */\n\n")
+            
+            # Árvore de Diretórios
+            f_out.write("/* " + "-"*70 + " */\n")
+            f_out.write("/* ESTRUTURA DO PROJETO (ÁRVORE DE ARQUIVOS)\n")
+            f_out.write("/* " + "-"*70 + " */\n\n")
+            f_out.write(tree_str + "\n\n")
+            
+            # Código dos arquivos
+            f_out.write("/* " + "="*70 + " */\n")
+            f_out.write("/* CONTEÚDO DOS ARQUIVOS DO PROJETO\n")
+            f_out.write("/* " + "="*70 + " */\n\n")
+            
+            for i, f_path in enumerate(files_to_read, 1):
+                relative_path = os.path.relpath(f_path, root_path).replace("\\", "/")
+                if progress_callback:
+                    progress_callback(i, total_files, f"Lendo arquivo: {relative_path}")
+                
+                f_out.write("/* " + "-"*70 + " */\n")
+                f_out.write(f"// Arquivo: {project_name}/{relative_path}\n")
+                f_out.write("/* " + "-"*70 + " */\n\n")
+                
+                try:
+                    with open(f_path, 'r', encoding='utf-8', errors='ignore') as f_in:
+                        f_out.write(f_in.read() + "\n\n")
+                except Exception as e:
+                    f_out.write(f"// [Erro ao ler arquivo: {e}]\n\n")
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/core/scanner.py
+/* ---------------------------------------------------------------------- */
+
+import os
+from core.models import FileNode
+from core.filters import FileFilter
+
+class Scanner:
+    def __init__(self, root_path: str, file_filter: FileFilter, is_test_file_fn: callable):
+        self.root_path = root_path
+        self.total_dirs = 0
+        self.total_files = 0
+        self.file_filter = file_filter
+        self.is_test_file_fn = is_test_file_fn
+
+    def scan(self, progress_callback=None, item_callback=None) -> FileNode:
+        root_name = os.path.basename(os.path.normpath(self.root_path))
+        root_node = FileNode(root_name, self.root_path, is_dir=True)
+        if item_callback:
+            # Envia a raiz com parent_path Vazio
+            item_callback("", self.root_path, True, root_name)
+            
+        self._build_tree(root_node, progress_callback, item_callback)
+        root_node.sort_children()
+        return root_node
+
+    def _build_tree(self, node: FileNode, progress_callback=None, item_callback=None):
+        try:
+            items = os.listdir(node.path)
+        except PermissionError:
+            return
+
+        for item in items:
+            full_path = os.path.join(node.path, item)
+            is_dir = os.path.isdir(full_path)
+            
+            if is_dir:
+                if self.file_filter.should_ignore_dir(item):
+                    continue
+            else:
+                if self.file_filter.should_ignore_file(item, self.is_test_file_fn(item)):
+                    continue
+
+            child_node = FileNode(item, full_path, is_dir)
+            node.add_child(child_node)
+
+            if is_dir:
+                self.total_dirs += 1
+                if progress_callback:
+                    progress_callback(f"Escaneando pasta: {item}")
+                if item_callback:
+                    item_callback(node.path, full_path, True, item)
+                self._build_tree(child_node, progress_callback, item_callback)
+            else:
+                self.total_files += 1
+                if progress_callback:
+                    if self.total_files % 10 == 0:
+                        progress_callback(f"Encontrados {self.total_files} arquivos...")
+                if item_callback:
+                    item_callback(node.path, full_path, False, item)
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/core/services.py
+/* ---------------------------------------------------------------------- */
+
+import os
+import shutil
+from typing import Callable, List
+from core.filters import FileFilter
+from core.report import ReportGenerator
+from core.compressor import Compressor
+
+class ExportProjectService:
+    def __init__(self, report_generator: ReportGenerator, compressor: Compressor):
+        self.report_generator = report_generator
+        self.compressor = compressor
+
+    def execute(self, root_path: str, selected_paths: set, file_filter: FileFilter, progress_text_cb: Callable[[str], None], progress_val_cb: Callable[[int], None]):
+        project_name = os.path.basename(os.path.normpath(root_path))
+        
+        # Gera o relatório com o nome do projeto (ex: domain-system.txt)
+        named_report_path = os.path.join(root_path, f"{project_name}.txt")
+        legacy_report_path = os.path.join(root_path, 'project.txt')
+        zip_path = os.path.join(root_path, f"{project_name}.zip")
+
+        # 1. Gerar Relatório de Contexto (0 a 50%)
+        def report_progress(count: int, total: int, msg: str):
+            percent = int((count / total) * 50) if total > 0 else 50
+            progress_val_cb(percent)
+            progress_text_cb(msg)
+
+        progress_text_cb("Iniciando geração do relatório de contexto...")
+        self.report_generator.generate(root_path, selected_paths, file_filter, named_report_path, report_progress)
+        
+        # Mantém project.txt sincronizado para ferramentas que esperam esse nome
+        try:
+            shutil.copy2(named_report_path, legacy_report_path)
+        except Exception:
+            pass
+
+        # 2. Gerar ZIP do Projeto (50 a 100%)
+        def zip_progress(count: int, total: int, msg: str):
+            percent = 50 + int((count / total) * 50) if total > 0 else 100
+            progress_val_cb(percent)
+            progress_text_cb(f"Compactando: {msg}")
+
+        progress_text_cb("Iniciando compactação em arquivo ZIP...")
+        self.compressor.compress(root_path, selected_paths, file_filter, zip_path, zip_progress)
+        
+        progress_val_cb(100)
+        progress_text_cb("Processo concluído com sucesso!")
+        return True, f"Relatórios ({project_name}.txt e project.txt) e ZIP ({project_name}.zip) criados com sucesso!"
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/core/tree_formatter.py
+/* ---------------------------------------------------------------------- */
+
+import os
+from collections import defaultdict
+
+class TreeFormatter:
+    ICON_MAP = {
+        '.py': '🐍',
+        '.js': '📜', '.jsx': '📜', '.ts': '📜', '.tsx': '📜',
+        '.html': '🌐', '.htm': '🌐',
+        '.css': '🎨', '.scss': '🎨', '.sass': '🎨',
+        '.json': '📋',
+        '.md': '📝', '.txt': '📝',
+        '.yml': '⚙️', '.yaml': '⚙️',
+        '.png': '🖼️', '.jpg': '🖼️', '.jpeg': '🖼️', '.svg': '🖼️', '.gif': '🖼️',
+        '.sh': '🖥️', '.bat': '🖥️',
+        '.env': '🔐',
+        '.xml': '🔖'
+    }
+    DEFAULT_ICON = '📄'
+
+    @classmethod
+    def _get_icon_for_extension(cls, filename: str) -> str:
+        """Retorna um emoji correspondente à extensão do arquivo."""
+        ext = os.path.splitext(filename)[1].lower()
+        return cls.ICON_MAP.get(ext, cls.DEFAULT_ICON)
+
+    @classmethod
+    def get_tree_string(cls, root_path: str, selected_paths: set, progress_callback=None) -> str:
+        """Gera a representação textual da árvore."""
+        tree_lines = []
+        project_name = os.path.basename(os.path.normpath(root_path))
+        
+        # Mapeia caminhos selecionados por diretório pai para busca O(1)
+        children_map = defaultdict(list)
+        for p in selected_paths:
+            rel = os.path.relpath(p, root_path)
+            if rel == '.':
+                continue
+            is_dir = os.path.isdir(p)
+            parent_dir = os.path.dirname(rel)
+            children_map[parent_dir].append((os.path.basename(p), rel, is_dir))
+        
+        def build_tree(current_rel_path: str, prefix: str):
+            children = children_map.get(current_rel_path, [])
+            children.sort(key=lambda x: (not x[2], x[0].lower()))
+            
+            for i, (name, rel_path, is_dir) in enumerate(children):
+                if progress_callback:
+                    progress_callback(1, 2, f"Formatando árvore: {name}")
+                is_last = (i == len(children) - 1)
+                connector = "└── " if is_last else "├── "
+                
+                if is_dir:
+                    tree_lines.append(f"{prefix}{connector}📁 {name}/")
+                    extension_prefix = "    " if is_last else "│   "
+                    build_tree(rel_path, prefix + extension_prefix)
+                else:
+                    icon = cls._get_icon_for_extension(name)
+                    tree_lines.append(f"{prefix}{connector}{icon} {name}")
+                    
+        tree_lines.append(f"📦 {project_name}/")
+        build_tree("", "")
+        return "\n".join(tree_lines)
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/gui/__init__.py
+/* ---------------------------------------------------------------------- */
+
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/gui/ignore_rules_widget.py
+/* ---------------------------------------------------------------------- */
+
+import json
+import os
+import sys
+from PySide6.QtWidgets import (
+    QFileSystemModel,
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
+    QLabel, QScrollArea, QLineEdit, QCheckBox, QMessageBox,
+    QTreeView, QAbstractItemView, QSplitter, QFileDialog, QSizePolicy
+)
+from PySide6.QtCore import Qt, QDir, Signal, QSortFilterProxyModel
+import fnmatch
+
+from config.settings import DEFAULT_IGNORE_DIRS, DEFAULT_IGNORE_FILES
+
+if getattr(sys, 'frozen', False):
+    app_dir = os.path.dirname(sys.executable)
+else:
+    app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+CONFIG_FILE = os.path.join(app_dir, "ignore_rules.json")
+
+class CheckableFileSystemModel(QFileSystemModel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.checked_paths = set()
+
+    def flags(self, index):
+        default_flags = super().flags(index)
+        if index.column() == 0:
+            return default_flags | Qt.ItemIsUserCheckable
+        return default_flags
+
+    def data(self, index, role=Qt.DisplayRole):
+        if role == Qt.CheckStateRole and index.column() == 0:
+            path = self.filePath(index)
+            return Qt.Checked if path in self.checked_paths else Qt.Unchecked
+        return super().data(index, role)
+
+    def setData(self, index, value, role=Qt.EditRole):
+        if role == Qt.CheckStateRole and index.column() == 0:
+            path = self.filePath(index)
+            # PySide6 sends integer or Qt.CheckState enum
+            is_checked = (value == Qt.Checked.value) if hasattr(value, 'value') else (value == 2)
+            
+            if is_checked:
+                self.checked_paths.add(path)
+            elif path in self.checked_paths:
+                self.checked_paths.remove(path)
+            
+            self.dataChanged.emit(index, index, [Qt.CheckStateRole])
+            return True
+        return super().setData(index, value, role)
+
+class ExceptionFilterProxyModel(QSortFilterProxyModel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.ignore_patterns = []
+
+    def set_ignore_patterns(self, patterns):
+        self.ignore_patterns = patterns
+        self.invalidateFilter()
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        source_model = self.sourceModel()
+        index = source_model.index(source_row, 0, source_parent)
+        file_name = source_model.fileName(index)
+        
+        for pattern in self.ignore_patterns:
+            if fnmatch.fnmatch(file_name.lower(), pattern.lower()):
+                return False
+        return True
+
+class IgnoreRulesWidget(QWidget):
+    rules_saved = Signal()
+    def __init__(self):
+        super().__init__()
+        self.ignore_rows = []
+        self._setup_ui()
+
+    def _setup_ui(self):
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        splitter = QSplitter(Qt.Vertical)
+        
+        # --- PARTE SUPERIOR ---
+        top_widget = QWidget()
+        top_layout = QVBoxLayout(top_widget)
+        top_layout.setContentsMargins(0,0,0,0)
+        
+        lbl_tree = QLabel("1. Marque as caixinhas na árvore abaixo para selecionar as pastas ou arquivos:")
+        top_layout.addWidget(lbl_tree)
+        
+        btn_top_layout = QHBoxLayout()
+        self.btn_load_dir = QPushButton("📂 Abrir Pasta do Projeto...")
+        self.btn_load_dir.setFixedWidth(250)
+        self.btn_load_dir.clicked.connect(self.load_directory)
+        btn_top_layout.addWidget(self.btn_load_dir)
+        btn_top_layout.addStretch()
+        top_layout.addLayout(btn_top_layout)
+        
+        self.fs_model = CheckableFileSystemModel()
+        self.fs_model.setRootPath("")
+        self.fs_model.setFilter(QDir.AllEntries | QDir.NoDotAndDotDot | QDir.Hidden)
+        
+        self.tree_view = QTreeView()
+        self.proxy_model = ExceptionFilterProxyModel()
+        self.proxy_model.setSourceModel(self.fs_model)
+        self.tree_view.setModel(self.proxy_model)
+        self.tree_view.setColumnWidth(0, 300)
+        top_layout.addWidget(self.tree_view)
+        
+        btn_add_sel_layout = QHBoxLayout()
+        self.btn_add_selected = QPushButton("⬇ Adicionar Marcados à Lista de Exceções")
+        self.btn_add_selected.setFixedWidth(350)
+        self.btn_add_selected.clicked.connect(self.add_selected_from_tree)
+        btn_add_sel_layout.addWidget(self.btn_add_selected)
+        btn_add_sel_layout.addStretch()
+        top_layout.addLayout(btn_add_sel_layout)
+        
+        splitter.addWidget(top_widget)
+        
+        # --- PARTE INFERIOR ---
+        bottom_widget = QWidget()
+        bottom_layout = QVBoxLayout(bottom_widget)
+        bottom_layout.setContentsMargins(0,0,0,0)
+        
+        lbl_list = QLabel("2. Lista de Exceções Ativas:")
+        bottom_layout.addWidget(lbl_list)
+        
+        btn_layout = QHBoxLayout()
+        self.btn_add_manual = QPushButton("+ Nova Exceção Manual")
+        self.btn_add_manual.setFixedWidth(200)
+        self.btn_add_manual.clicked.connect(lambda: self.add_exception_row("", True))
+        
+        self.btn_save = QPushButton("💾 Salvar Regras")
+        self.btn_save.setFixedWidth(200)
+        self.btn_save.clicked.connect(self.save_rules)
+        self.btn_save.setStyleSheet("background-color: #2e8b57; color: white; font-weight: bold;")
+        
+        btn_layout.addWidget(self.btn_add_manual)
+        btn_layout.addWidget(self.btn_save)
+        btn_layout.addStretch()
+        bottom_layout.addLayout(btn_layout)
+        
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_widget = QWidget()
+        self.scroll_layout = QVBoxLayout(self.scroll_widget)
+        self.scroll_layout.setAlignment(Qt.AlignTop)
+        self.scroll_area.setWidget(self.scroll_widget)
+        bottom_layout.addWidget(self.scroll_area)
+        
+        splitter.addWidget(bottom_widget)
+        
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 1)
+        main_layout.addWidget(splitter)
+        
+        self.load_rules()
+
+    def load_directory(self):
+        folder = QFileDialog.getExistingDirectory(self, "Selecione a Pasta do Projeto")
+        if folder:
+            self.set_directory(folder)
+
+    def set_directory(self, folder):
+        source_index = self.fs_model.setRootPath(folder)
+        proxy_index = self.proxy_model.mapFromSource(source_index)
+        self.tree_view.setRootIndex(proxy_index)
+
+    def add_selected_from_tree(self):
+        added_count = 0
+        for path in list(self.fs_model.checked_paths):
+            name = os.path.basename(path)
+            if name:
+                self.add_exception_row(name, True)
+                added_count += 1
+        
+        if added_count > 0:
+            QMessageBox.information(self, "Sucesso", f"{added_count} item(ns) adicionado(s) às exceções! Não esqueça de Salvar.")
+            self.fs_model.checked_paths.clear()
+            
+
+            self.tree_view.viewport().update()
+
+    def load_rules(self):
+        for rw, txt, chk in self.ignore_rows:
+            rw.deleteLater()
+        self.ignore_rows.clear()
+
+        rules_to_load = []
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    rules_to_load = data.get("rules", [])
+            except Exception:
+                rules_to_load = [{"pattern": d, "active": True} for d in (DEFAULT_IGNORE_DIRS + DEFAULT_IGNORE_FILES)]
+        else:
+            rules_to_load = [{"pattern": d, "active": True} for d in (DEFAULT_IGNORE_DIRS + DEFAULT_IGNORE_FILES)]
+
+        for rule in rules_to_load:
+            self.add_exception_row(rule["pattern"], rule["active"])
+
+        if not rules_to_load:
+            self.add_exception_row("", True)
+
+    def save_rules(self):
+        rules = []
+        for rw, txt, chk in self.ignore_rows:
+            pattern = txt.text().strip()
+            if pattern:
+                rules.append({"pattern": pattern, "active": chk.isChecked()})
+        
+        try:
+            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+                json.dump({"rules": rules}, f, indent=4)
+            QMessageBox.information(self, "Sucesso", "Regras salvas com sucesso!")
+            self.rules_saved.emit()
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao salvar regras: {e}")
+
+    def add_exception_row(self, initial_text="", is_active=True):
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        
+        txt_field = QLineEdit()
+        txt_field.setPlaceholderText("Ex: *.zip, docs, .git")
+        txt_field.setText(initial_text)
+        txt_field.setFixedWidth(300)
+        
+        chk_active = QCheckBox("Ativo")
+        chk_active.setChecked(is_active)
+        chk_active.stateChanged.connect(lambda: self._update_proxy_filters())
+        txt_field.textChanged.connect(lambda: self._update_proxy_filters())
+        
+        btn_remove = QPushButton("Excluir")
+        btn_remove.setFixedWidth(100)
+        
+        row_layout.addWidget(txt_field)
+        row_layout.addWidget(chk_active)
+        row_layout.addWidget(btn_remove)
+        row_layout.addStretch()
+        
+        self.scroll_layout.addWidget(row_widget)
+        
+        btn_remove.clicked.connect(lambda: self.remove_exception_row(row_widget))
+        self.ignore_rows.append((row_widget, txt_field, chk_active))
+        self._update_proxy_filters()
+
+    def remove_exception_row(self, row_widget):
+        for i, (rw, txt, chk) in enumerate(self.ignore_rows):
+            if rw == row_widget:
+                self.ignore_rows.pop(i)
+                rw.deleteLater()
+                self._update_proxy_filters()
+                break
+
+    def _update_proxy_filters(self):
+        if hasattr(self, 'proxy_model'):
+            self.proxy_model.set_ignore_patterns(self.get_ignore_patterns())
+
+    def get_ignore_patterns(self):
+        patterns = []
+        for rw, txt, chk in self.ignore_rows:
+            if not chk.isChecked():
+                continue
+            t = txt.text().strip()
+            if t:
+                patterns.append(t)
+        return patterns
+
+
+
+
+
+
+
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/gui/main_window.py
+/* ---------------------------------------------------------------------- */
+
+import os
+from PySide6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
+    QLabel, QTreeView, QFileDialog, QMessageBox, QProgressBar,
+    QApplication, QStyle, QTabWidget, QLineEdit, QComboBox, QScrollArea
+)
+from PySide6.QtGui import QStandardItemModel, QStandardItem
+from PySide6.QtCore import Qt
+
+from core.models import FileNode
+from gui.workers import ScanWorker, ProcessWorker
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Update Project - Packer & Documenter")
+        self.resize(800, 600)
+
+        self.root_path = ""
+        self.tree_model = QStandardItemModel()
+        self.tree_model.setHorizontalHeaderLabels(["Nome do Arquivo/Pasta"])
+        self.tree_model.itemChanged.connect(self._on_item_changed)
+        
+        self.ignore_rows = []
+
+        self._setup_ui()
+
+    def _setup_ui(self):
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget)
+
+        self.tabs = QTabWidget()
+        main_layout.addWidget(self.tabs)
+
+        # Tab 1: Compactador
+        self.tab_packer = QWidget()
+        self._setup_tab_packer()
+        self.tabs.addTab(self.tab_packer, "Compactador")
+
+        # Tab 2: Configurações / Exceções
+        self.tab_config = QWidget()
+        self._setup_tab_config()
+        self.tabs.addTab(self.tab_config, "Exceções de Compactação")
+
+    def _setup_tab_packer(self):
+        layout = QVBoxLayout(self.tab_packer)
+
+        # Top Bar
+        top_layout = QHBoxLayout()
+        self.btn_open = QPushButton("Abrir Pasta do Projeto...")
+        self.btn_open.clicked.connect(self.open_project)
+        self.lbl_path = QLabel("Nenhuma pasta selecionada.")
+        top_layout.addWidget(self.btn_open)
+        top_layout.addWidget(self.lbl_path, 1)
+        layout.addLayout(top_layout)
+
+        # Tree View
+        self.tree_view = QTreeView()
+        self.tree_view.setModel(self.tree_model)
+        self.tree_view.setColumnWidth(0, 400)
+        layout.addWidget(self.tree_view)
+
+        # Status & Counts
+        status_layout = QHBoxLayout()
+        self.lbl_counts = QLabel("Pastas: 0 | Arquivos: 0")
+        self.lbl_status = QLabel("Aguardando ação...")
+        status_layout.addWidget(self.lbl_counts)
+        status_layout.addStretch()
+        status_layout.addWidget(self.lbl_status)
+        layout.addLayout(status_layout)
+
+        # Progress Bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setFixedHeight(10)
+        layout.addWidget(self.progress_bar)
+
+        # Bottom Bar
+        self.btn_process = QPushButton("Compactar e Gerar Relatório")
+        self.btn_process.clicked.connect(self.process_project)
+        self.btn_process.setEnabled(False)
+        layout.addWidget(self.btn_process)
+
+    def _setup_tab_config(self):
+        layout = QVBoxLayout(self.tab_config)
+        from gui.ignore_rules_widget import IgnoreRulesWidget
+        self.ignore_rules_widget = IgnoreRulesWidget()
+        self.ignore_rules_widget.rules_saved.connect(self._on_rules_saved)
+        layout.addWidget(self.ignore_rules_widget)
+
+    def get_ignore_patterns(self):
+        return self.ignore_rules_widget.get_ignore_patterns()
+
+    def _on_rules_saved(self):
+        if self.root_path:
+            self._start_scan()
+
+    def open_project(self):
+        directory = QFileDialog.getExistingDirectory(self, "Selecione a Pasta do Projeto")
+        if directory:
+            self.root_path = os.path.normpath(directory)
+            self.lbl_path.setText(self.root_path)
+            self.ignore_rules_widget.set_directory(self.root_path)
+            self._start_scan()
+
+    def _start_scan(self):
+        self.btn_open.setEnabled(False)
+        self.btn_process.setEnabled(False)
+        self.tree_model.clear()
+        self.tree_model.setHorizontalHeaderLabels(["Nome do Arquivo/Pasta"])
+        self.tree_model.setSortRole(Qt.UserRole + 1)
+        self.progress_bar.setRange(0, 0) # Indeterminate
+        
+        self.path_to_item = {}
+        
+        ignore_patterns = self.get_ignore_patterns()
+        
+        from config.settings import ALLOWED_EXTENSIONS, is_test_file
+        from core.filters import FileFilter
+        from core.scanner import Scanner
+
+        file_filter = FileFilter(ignore_patterns, [], [], ALLOWED_EXTENSIONS)
+        scanner = Scanner(self.root_path, file_filter, is_test_file)
+
+        self.scan_worker = ScanWorker(scanner)
+        self.scan_worker.progress.connect(self.lbl_status.setText)
+        self.scan_worker.item_found.connect(self._on_item_found)
+        self.scan_worker.finished.connect(self._on_scan_finished)
+        self.scan_worker.start()
+
+    def _on_item_found(self, parent_path: str, full_path: str, is_dir: bool, name: str):
+        item = QStandardItem(name)
+        item.setCheckable(True)
+        item.setCheckState(Qt.Checked)
+        item.setEditable(False)
+        
+        # Sort key para pastas virem primeiro
+        sort_key = f"0_{name.lower()}" if is_dir else f"1_{name.lower()}"
+        item.setData(sort_key, Qt.UserRole + 1)
+        item.setData(full_path, Qt.UserRole)
+        
+        style = QApplication.style()
+        if is_dir:
+            item.setIcon(style.standardIcon(QStyle.SP_DirIcon))
+        else:
+            item.setIcon(style.standardIcon(QStyle.SP_FileIcon))
+            
+        if not parent_path: # Root node
+            self.tree_model.invisibleRootItem().appendRow(item)
+            self.path_to_item[full_path] = item
+            self.tree_view.expandToDepth(0)
+        else:
+            parent_item = self.path_to_item.get(parent_path)
+            if parent_item:
+                parent_item.appendRow(item)
+                self.path_to_item[full_path] = item
+
+    def _on_scan_finished(self, root_node: FileNode):
+        self.progress_bar.setRange(0, 1)
+        self.progress_bar.setValue(1)
+        
+        # Recupera as contagens do scanner que injetamos
+        total_files = self.scan_worker.scanner.total_files
+        total_dirs = self.scan_worker.scanner.total_dirs
+        
+        self.lbl_counts.setText(f"Pastas: {total_dirs} | Arquivos: {total_files}")
+        self.lbl_status.setText("Varredura concluída. Selecione os arquivos e clique em Compactar.")
+        
+        # Ordena a árvore inteira automaticamente
+        self.tree_model.sort(0, Qt.AscendingOrder)
+
+        self.btn_open.setEnabled(True)
+        self.btn_process.setEnabled(True)
+
+    def _on_item_changed(self, item: QStandardItem):
+        """Propaga o check/uncheck para os filhos e atualiza o pai se necessário."""
+        self.tree_model.itemChanged.disconnect(self._on_item_changed)
+        
+        state = item.checkState()
+        
+        # Propagar para baixo
+        def set_children_state(parent: QStandardItem, s: Qt.CheckState):
+            for row in range(parent.rowCount()):
+                child = parent.child(row)
+                child.setCheckState(s)
+                set_children_state(child, s)
+        
+        set_children_state(item, state)
+        
+        # Propagar para cima (Opcional: se todos os filhos desmarcados, desmarca o pai)
+        # Para manter a simplicidade e performance, vamos apenas propagar para baixo.
+        
+        self.tree_model.itemChanged.connect(self._on_item_changed)
+
+    def process_project(self):
+        # Coletar caminhos selecionados
+        selected_paths = []
+        
+        def collect_checked(item: QStandardItem):
+            if item.checkState() == Qt.Checked:
+                selected_paths.append(item.data(Qt.UserRole))
+            # Mesmo se o pai estiver desmarcado, ele pode ter sido PartiallyChecked, mas 
+            # usando 2-states é mais simples. Vamos iterar sobre os filhos.
+            for row in range(item.rowCount()):
+                collect_checked(item.child(row))
+                
+        root_item = self.tree_model.item(0, 0)
+        if root_item:
+            collect_checked(root_item)
+
+        if not selected_paths:
+            QMessageBox.warning(self, "Aviso", "Nenhum arquivo ou pasta selecionado!")
+            return
+
+        self.btn_open.setEnabled(False)
+        self.btn_process.setEnabled(False)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+
+        ignore_patterns = self.get_ignore_patterns()
+
+        from config.settings import ALLOWED_EXTENSIONS
+        from core.filters import FileFilter
+        from core.report import ReportGenerator
+        from core.compressor import Compressor
+        from core.services import ExportProjectService
+
+        file_filter = FileFilter(ignore_patterns, [], [], ALLOWED_EXTENSIONS)
+        report_generator = ReportGenerator()
+        compressor = Compressor()
+        export_service = ExportProjectService(report_generator, compressor)
+
+        self.process_worker = ProcessWorker(export_service, self.root_path, selected_paths, file_filter)
+        self.process_worker.progress_text.connect(self.lbl_status.setText)
+        self.process_worker.progress_value.connect(self.progress_bar.setValue)
+        self.process_worker.finished.connect(self._on_process_finished)
+        self.process_worker.start()
+
+    def _on_process_finished(self, success: bool, message: str):
+        self.progress_bar.setValue(100)
+        self.btn_open.setEnabled(True)
+        self.btn_process.setEnabled(True)
+        self.lbl_status.setText("Pronto." if success else "Erro durante o processo.")
+        
+        if success:
+            QMessageBox.information(self, "Sucesso", message)
+        else:
+            QMessageBox.critical(self, "Erro", f"Ocorreu um erro:\n{message}")
+
+
+
+
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/gui/theme.py
+/* ---------------------------------------------------------------------- */
+
+DARK_STYLE = """
+QMainWindow, QMessageBox, QDialog {
+    background-color: #1e1e2e;
+}
+QPushButton {
+    background-color: #89b4fa;
+    color: #11111b;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 13px;
+}
+QPushButton:hover {
+    background-color: #b4befe;
+}
+QPushButton:disabled {
+    background-color: #45475a;
+    color: #a6adc8;
+}
+QTreeView {
+    background-color: #181825;
+    color: #cdd6f4;
+    border: 1px solid #313244;
+    border-radius: 5px;
+    padding: 5px;
+    font-size: 13px;
+}
+QTreeView::item {
+    padding: 4px;
+}
+QTreeView::item:hover {
+    background-color: #313244;
+}
+QTreeView::item:selected {
+    background-color: #89b4fa;
+    color: #11111b;
+}
+QProgressBar {
+    border: 1px solid #313244;
+    border-radius: 5px;
+    background-color: #181825;
+    text-align: center;
+    color: #cdd6f4;
+    font-weight: bold;
+}
+QProgressBar::chunk {
+    background-color: #a6e3a1;
+    border-radius: 4px;
+}
+QLabel {
+    font-size: 13px;
+    color: #cdd6f4;
+}
+QTabWidget::pane {
+    border: 1px solid #313244;
+    border-radius: 5px;
+    background-color: #1e1e2e;
+}
+QTabBar::tab {
+    background: #181825;
+    color: #a6adc8;
+    padding: 8px 16px;
+    border: 1px solid #313244;
+    border-bottom-color: #313244;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+QTabBar::tab:selected {
+    background: #1e1e2e;
+    color: #89b4fa;
+    border-bottom-color: #1e1e2e;
+}
+QLineEdit, QComboBox, QCheckBox {
+    background-color: #181825;
+    color: #cdd6f4;
+    border: 1px solid #313244;
+    border-radius: 4px;
+    padding: 5px;
+}
+QCheckBox {
+    background-color: transparent;
+    border: none;
+}
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border: 1px solid #313244;
+    border-radius: 4px;
+    background-color: #1e1e2e;
+}
+QCheckBox::indicator:checked {
+    background-color: #89b4fa;
+}
+QComboBox::drop-down {
+    border: none;
+}
+QScrollArea {
+    border: none;
+    background-color: transparent;
+}
+QScrollArea > QWidget > QWidget {
+    background-color: transparent;
+}
+"""
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/gui/workers.py
+/* ---------------------------------------------------------------------- */
+
+import os
+from PySide6.QtCore import QThread, Signal
+from typing import List
+
+from core.scanner import Scanner
+from core.models import FileNode
+from core.compressor import Compressor
+from core.report import ReportGenerator
+
+class ScanWorker(QThread):
+    progress = Signal(str)
+    item_found = Signal(str, str, bool, str)
+    finished = Signal(FileNode)
+
+    def __init__(self, scanner):
+        super().__init__()
+        self.scanner = scanner
+
+    def run(self):
+        try:
+            self.progress.emit("Iniciando varredura...")
+            
+            def prog_cb(msg):
+                self.progress.emit(msg)
+                
+            def item_cb(parent_path, full_path, is_dir, name):
+                self.item_found.emit(parent_path, full_path, is_dir, name)
+                
+            root_node = self.scanner.scan(prog_cb, item_cb)
+            self.finished.emit(root_node)
+        except Exception as e:
+            self.progress.emit(f"Erro na varredura: {str(e)}")
+            self.finished.emit(None)
+
+
+class ProcessWorker(QThread):
+    progress_text = Signal(str)
+    progress_value = Signal(int)
+    finished = Signal(bool, str) # success, message
+
+    def __init__(self, export_service, root_path: str, selected_paths: list, file_filter):
+        super().__init__()
+        self.export_service = export_service
+        self.root_path = root_path
+        self.selected_paths = set(selected_paths)
+        self.file_filter = file_filter
+
+    def run(self):
+        try:
+            self.progress_value.emit(0)
+            
+            def text_cb(msg): self.progress_text.emit(msg)
+            def val_cb(val): self.progress_value.emit(val)
+
+            success, msg = self.export_service.execute(
+                self.root_path, 
+                self.selected_paths, 
+                self.file_filter, 
+                text_cb, 
+                val_cb
+            )
+            self.finished.emit(success, msg)
+        except Exception as e:
+            self.finished.emit(False, f"Erro crítico: {str(e)}")
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/main.py
+/* ---------------------------------------------------------------------- */
+
+import sys
+import os
+import argparse
+
+# Adiciona o diretório atual ao PYTHONPATH
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from config.settings import ALLOWED_EXTENSIONS, DEFAULT_IGNORE_DIRS, DEFAULT_IGNORE_FILES, is_test_file
+from core.filters import FileFilter
+from core.scanner import Scanner
+from core.report import ReportGenerator
+from core.compressor import Compressor
+from core.services import ExportProjectService
+
+def run_cli(target_dir: str):
+    root_path = os.path.abspath(target_dir)
+    if not os.path.isdir(root_path):
+        print(f"Erro: O diretório '{root_path}' não foi encontrado.")
+        sys.exit(1)
+
+    project_name = os.path.basename(os.path.normpath(root_path))
+    print(f"==> Iniciando processamento do projeto: {project_name}")
+    print(f"==> Diretório: {root_path}")
+
+    ignore_files = set(DEFAULT_IGNORE_FILES)
+    ignore_files.add(f"{project_name}.txt")
+    ignore_files.add(f"{project_name}.zip")
+    
+    file_filter = FileFilter(
+        ignore_patterns=[],
+        default_ignore_files=ignore_files,
+        default_ignore_dirs=set(DEFAULT_IGNORE_DIRS),
+        allowed_extensions=ALLOWED_EXTENSIONS
+    )
+
+    print("==> Escaneando arquivos do projeto...")
+    scanner = Scanner(root_path, file_filter, is_test_file)
+    scanner.scan(progress_callback=lambda msg: print(f"    [SCAN] {msg}"))
+
+    # Seleciona todos os arquivos encontrados recursivamente
+    selected_paths = set()
+    for root, dirs, files in os.walk(root_path):
+        # Filtra pastas ignoradas
+        dirs[:] = [d for d in dirs if not file_filter.should_ignore_dir(d)]
+        for f in files:
+            if not file_filter.should_ignore_file(f, is_test_file(f)):
+                selected_paths.add(os.path.join(root, f))
+
+    report_gen = ReportGenerator()
+    compressor = Compressor()
+    service = ExportProjectService(report_gen, compressor)
+
+    def print_text(msg: str):
+        print(f"    {msg}")
+
+    def print_val(val: int):
+        pass
+
+    success, msg = service.execute(root_path, selected_paths, file_filter, print_text, print_val)
+    print(f"==> {msg}")
+
+def run_gui():
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtGui import QIcon
+    from gui.main_window import MainWindow
+    from gui.theme import DARK_STYLE
+
+    app = QApplication(sys.argv)
+    app.setStyleSheet(DARK_STYLE)
+    
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        
+    icon_path = os.path.join(base_path, 'icon.ico')
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
+    
+    window = MainWindow()
+    if os.path.exists(icon_path):
+        window.setWindowIcon(QIcon(icon_path))
+    window.show()
+    sys.exit(app.exec())
+
+def main():
+    parser = argparse.ArgumentParser(description="Update-Project: AI Codebase Context Packer & Project Archiver")
+    parser.add_argument("path", nargs="?", default=None, help="Caminho do projeto para processar via linha de comando (modo CLI)")
+    parser.add_argument("--cli", action="store_true", help="Força a execução via linha de comando no diretório atual")
+
+    args = parser.parse_args()
+
+    if args.path:
+        run_cli(args.path)
+    elif args.cli:
+        run_cli(os.getcwd())
+    else:
+        run_gui()
+
+if __name__ == "__main__":
+    main()
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/requirements.txt
+/* ---------------------------------------------------------------------- */
+
+PySide6>=6.5.0
+
+

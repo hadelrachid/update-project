@@ -5,8 +5,6 @@ __pycache__/
 build/
 dist/
 *.zip
-*.txt
-!requirements.txt
 .vscode/
 .idea/
 auditoria/
