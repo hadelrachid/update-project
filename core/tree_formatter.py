@@ -4,6 +4,7 @@ from collections import defaultdict
 class TreeFormatter:
     ICON_MAP = {
         '.py': '🐍',
+        '.php': '🐘',
         '.js': '📜', '.jsx': '📜', '.ts': '📜', '.tsx': '📜',
         '.html': '🌐', '.htm': '🌐',
         '.css': '🎨', '.scss': '🎨', '.sass': '🎨',
@@ -13,7 +14,7 @@ class TreeFormatter:
         '.png': '🖼️', '.jpg': '🖼️', '.jpeg': '🖼️', '.svg': '🖼️', '.gif': '🖼️',
         '.sh': '🖥️', '.bat': '🖥️',
         '.env': '🔐',
-        '.xml': '🔖'
+        '.xml': '🔖', '.sql': '🗄️'
     }
     DEFAULT_ICON = '📄'
 
@@ -25,28 +26,43 @@ class TreeFormatter:
 
     @classmethod
     def get_tree_string(cls, root_path: str, selected_paths: set, progress_callback=None) -> str:
-        """Gera a representação textual da árvore."""
+        """Gera a representação textual hierárquica completa da árvore de arquivos e pastas."""
         tree_lines = []
         project_name = os.path.basename(os.path.normpath(root_path))
         
-        # Mapeia caminhos selecionados por diretório pai para busca O(1)
-        children_map = defaultdict(list)
+        # Mapeia estrutura hierárquica completa: parent_rel_path -> set de (nome, rel_path, is_dir)
+        children_map = defaultdict(dict)
+        
         for p in selected_paths:
-            rel = os.path.relpath(p, root_path)
-            if rel == '.':
+            rel = os.path.relpath(p, root_path).replace("\\", "/")
+            if rel == '.' or rel == '':
                 continue
+            
+            parts = rel.split('/')
+            
+            # Adiciona os diretórios ancestrais na hierarquia
+            current_parent = ""
+            for i in range(len(parts) - 1):
+                dir_name = parts[i]
+                dir_rel = f"{current_parent}/{dir_name}" if current_parent else dir_name
+                children_map[current_parent][dir_name] = (dir_name, dir_rel, True)
+                current_parent = dir_rel
+            
+            # Adiciona o arquivo (ou diretório folha)
+            leaf_name = parts[-1]
             is_dir = os.path.isdir(p)
-            parent_dir = os.path.dirname(rel)
-            children_map[parent_dir].append((os.path.basename(p), rel, is_dir))
+            children_map[current_parent][leaf_name] = (leaf_name, rel, is_dir)
         
         def build_tree(current_rel_path: str, prefix: str):
-            children = children_map.get(current_rel_path, [])
-            children.sort(key=lambda x: (not x[2], x[0].lower()))
+            items_dict = children_map.get(current_rel_path, {})
+            # Converte para lista e ordena: primeiro pastas, depois arquivos (ordem alfabética)
+            items = list(items_dict.values())
+            items.sort(key=lambda x: (not x[2], x[0].lower()))
             
-            for i, (name, rel_path, is_dir) in enumerate(children):
+            for i, (name, rel_path, is_dir) in enumerate(items):
                 if progress_callback:
                     progress_callback(1, 2, f"Formatando árvore: {name}")
-                is_last = (i == len(children) - 1)
+                is_last = (i == len(items) - 1)
                 connector = "└── " if is_last else "├── "
                 
                 if is_dir:

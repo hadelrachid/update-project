@@ -1,7 +1,7 @@
 /* ====================================================================== */
 /* PROJETO: update-project
-/* DATA DE GERAÇÃO: 2026-10-28 18:48:25
-/* TOTAL DE ARQUIVOS CONSOLIDADOS: 18
+/* DATA DE GERAÇÃO: 2026-10-28 19:07:45
+/* TOTAL DE ARQUIVOS CONSOLIDADOS: 19
 /* FERRAMENTA: Update-Project (Codebase Context Packer)
 /* FINALIDADE: Auditoria de código, revisão estática e contexto para IAs (LLMs)
 /* ====================================================================== */
@@ -11,13 +11,32 @@
 /* ---------------------------------------------------------------------- */
 
 📦 update-project/
+├── 📁 config/
+│   ├── 🐍 __init__.py
+│   └── 🐍 settings.py
+├── 📁 core/
+│   ├── 🐍 __init__.py
+│   ├── 🐍 compressor.py
+│   ├── 🐍 filters.py
+│   ├── 🐍 models.py
+│   ├── 🐍 report.py
+│   ├── 🐍 scanner.py
+│   ├── 🐍 services.py
+│   └── 🐍 tree_formatter.py
+├── 📁 gui/
+│   ├── 🐍 __init__.py
+│   ├── 🐍 ignore_rules_widget.py
+│   ├── 🐍 main_window.py
+│   ├── 🐍 theme.py
+│   └── 🐍 workers.py
 ├── 📄 .gitignore
 ├── 📄 icon.ico
 ├── 📄 LICENSE
 ├── 🐍 main.py
 ├── 📝 README.md
 ├── 📝 requirements.txt
-└── 📄 UpdateProject.spec
+├── 📄 UpdateProject.spec
+└── 🐍 version.py
 
 /* ====================================================================== */
 /* CONTEÚDO DOS ARQUIVOS DO PROJETO
@@ -508,6 +527,7 @@ from collections import defaultdict
 class TreeFormatter:
     ICON_MAP = {
         '.py': '🐍',
+        '.php': '🐘',
         '.js': '📜', '.jsx': '📜', '.ts': '📜', '.tsx': '📜',
         '.html': '🌐', '.htm': '🌐',
         '.css': '🎨', '.scss': '🎨', '.sass': '🎨',
@@ -517,7 +537,7 @@ class TreeFormatter:
         '.png': '🖼️', '.jpg': '🖼️', '.jpeg': '🖼️', '.svg': '🖼️', '.gif': '🖼️',
         '.sh': '🖥️', '.bat': '🖥️',
         '.env': '🔐',
-        '.xml': '🔖'
+        '.xml': '🔖', '.sql': '🗄️'
     }
     DEFAULT_ICON = '📄'
 
@@ -529,28 +549,43 @@ class TreeFormatter:
 
     @classmethod
     def get_tree_string(cls, root_path: str, selected_paths: set, progress_callback=None) -> str:
-        """Gera a representação textual da árvore."""
+        """Gera a representação textual hierárquica completa da árvore de arquivos e pastas."""
         tree_lines = []
         project_name = os.path.basename(os.path.normpath(root_path))
         
-        # Mapeia caminhos selecionados por diretório pai para busca O(1)
-        children_map = defaultdict(list)
+        # Mapeia estrutura hierárquica completa: parent_rel_path -> set de (nome, rel_path, is_dir)
+        children_map = defaultdict(dict)
+        
         for p in selected_paths:
-            rel = os.path.relpath(p, root_path)
-            if rel == '.':
+            rel = os.path.relpath(p, root_path).replace("\\", "/")
+            if rel == '.' or rel == '':
                 continue
+            
+            parts = rel.split('/')
+            
+            # Adiciona os diretórios ancestrais na hierarquia
+            current_parent = ""
+            for i in range(len(parts) - 1):
+                dir_name = parts[i]
+                dir_rel = f"{current_parent}/{dir_name}" if current_parent else dir_name
+                children_map[current_parent][dir_name] = (dir_name, dir_rel, True)
+                current_parent = dir_rel
+            
+            # Adiciona o arquivo (ou diretório folha)
+            leaf_name = parts[-1]
             is_dir = os.path.isdir(p)
-            parent_dir = os.path.dirname(rel)
-            children_map[parent_dir].append((os.path.basename(p), rel, is_dir))
+            children_map[current_parent][leaf_name] = (leaf_name, rel, is_dir)
         
         def build_tree(current_rel_path: str, prefix: str):
-            children = children_map.get(current_rel_path, [])
-            children.sort(key=lambda x: (not x[2], x[0].lower()))
+            items_dict = children_map.get(current_rel_path, {})
+            # Converte para lista e ordena: primeiro pastas, depois arquivos (ordem alfabética)
+            items = list(items_dict.values())
+            items.sort(key=lambda x: (not x[2], x[0].lower()))
             
-            for i, (name, rel_path, is_dir) in enumerate(children):
+            for i, (name, rel_path, is_dir) in enumerate(items):
                 if progress_callback:
                     progress_callback(1, 2, f"Formatando árvore: {name}")
-                is_last = (i == len(children) - 1)
+                is_last = (i == len(items) - 1)
                 connector = "└── " if is_last else "├── "
                 
                 if is_dir:
@@ -1309,6 +1344,7 @@ import argparse
 # Adiciona o diretório atual ao PYTHONPATH
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from version import __version__, __app_name__
 from config.settings import ALLOWED_EXTENSIONS, DEFAULT_IGNORE_DIRS, DEFAULT_IGNORE_FILES, is_test_file
 from core.filters import FileFilter
 from core.scanner import Scanner
@@ -1323,6 +1359,7 @@ def run_cli(target_dir: str):
         sys.exit(1)
 
     project_name = os.path.basename(os.path.normpath(root_path))
+    print(f"==> {__app_name__} v{__version__}")
     print(f"==> Iniciando processamento do projeto: {project_name}")
     print(f"==> Diretório: {root_path}")
 
@@ -1382,15 +1419,17 @@ def run_gui():
         app.setWindowIcon(QIcon(icon_path))
     
     window = MainWindow()
+    window.setWindowTitle(f"{__app_name__} v{__version__}")
     if os.path.exists(icon_path):
         window.setWindowIcon(QIcon(icon_path))
     window.show()
     sys.exit(app.exec())
 
 def main():
-    parser = argparse.ArgumentParser(description="Update-Project: AI Codebase Context Packer & Project Archiver")
+    parser = argparse.ArgumentParser(description=f"{__app_name__}: AI Codebase Context Packer & Project Archiver")
     parser.add_argument("path", nargs="?", default=None, help="Caminho do projeto para processar via linha de comando (modo CLI)")
     parser.add_argument("--cli", action="store_true", help="Força a execução via linha de comando no diretório atual")
+    parser.add_argument("-v", "--version", action="version", version=f"{__app_name__} {__version__}")
 
     args = parser.parse_args()
 
@@ -1410,5 +1449,13 @@ if __name__ == "__main__":
 /* ---------------------------------------------------------------------- */
 
 PySide6>=6.5.0
+
+
+/* ---------------------------------------------------------------------- */
+// Arquivo: update-project/version.py
+/* ---------------------------------------------------------------------- */
+
+__version__ = "1.0.0"
+__app_name__ = "Update-Project"
 
 
