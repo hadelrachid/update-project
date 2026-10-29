@@ -32,6 +32,7 @@ class TestCompressor(unittest.TestCase):
         self.compressor.compress(self.test_dir, selected, self.filter, zip_output)
         
         self.assertTrue(os.path.exists(zip_output))
+        self.assertFalse(os.path.exists(zip_output + ".tmp")) # Escrita atômica limpa temporários
         
         with zipfile.ZipFile(zip_output, 'r') as z:
             names = z.namelist()

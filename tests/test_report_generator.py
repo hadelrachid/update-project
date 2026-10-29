@@ -32,17 +32,20 @@ class TestReportGenerator(unittest.TestCase):
         output_txt = os.path.join(self.test_dir, "output.txt")
         selected = {self.file1, self.file2}
         
-        self.generator.generate(self.test_dir, selected, self.filter, output_txt)
+        meta = self.generator.generate(self.test_dir, selected, self.filter, output_txt)
         
         self.assertTrue(os.path.exists(output_txt))
+        self.assertFalse(os.path.exists(output_txt + ".tmp")) # Escrita atômica limpa temporários
+        self.assertEqual(meta["total_files"], 2)
         
         with open(output_txt, "r", encoding="utf-8") as f:
             content = f.read()
             
-        # Verifica se o cabeçalho de auditoria está presente
+        # Verifica se o manifesto estruturado está presente
         self.assertIn("/* PROJETO:", content)
         self.assertIn("/* TOTAL DE ARQUIVOS CONSOLIDADOS: 2", content)
-        self.assertIn("/* FERRAMENTA: Update-Project", content)
+        self.assertIn("/* PERFIL DE EXPORTAÇÃO: AUDIT", content)
+        self.assertIn("/* DIRETRIZES DE AUDITORIA PARA MODELOS DE IA", content)
         
         # Verifica se a árvore está presente
         self.assertIn("📁 app/", content)

@@ -9,14 +9,18 @@ from PySide6.QtCore import Qt
 
 from core.models import FileNode
 from gui.workers import ScanWorker, ProcessWorker
+from version import __version__, __app_name__
+from config.settings import is_test_file
+from core.filters import create_file_filter
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, default_profile: str = "audit"):
         super().__init__()
-        self.setWindowTitle("Update Project - Packer & Documenter")
-        self.resize(800, 600)
+        self.setWindowTitle(f"{__app_name__} v{__version__} - Context Packer & Auditor")
+        self.resize(850, 620)
 
         self.root_path = ""
+        self.default_profile = default_profile
         self.tree_model = QStandardItemModel()
         self.tree_model.setHorizontalHeaderLabels(["Nome do Arquivo/Pasta"])
         self.tree_model.itemChanged.connect(self._on_item_changed)
@@ -33,20 +37,20 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         main_layout.addWidget(self.tabs)
 
-        # Tab 1: Compactador
+        # Tab 1: Compactador e Auditor
         self.tab_packer = QWidget()
         self._setup_tab_packer()
-        self.tabs.addTab(self.tab_packer, "Compactador")
+        self.tabs.addTab(self.tab_packer, "Empacotador e Auditoria")
 
         # Tab 2: Configurações / Exceções
         self.tab_config = QWidget()
         self._setup_tab_config()
-        self.tabs.addTab(self.tab_config, "Exceções de Compactação")
+        self.tabs.addTab(self.tab_config, "Regras de Exceção")
 
     def _setup_tab_packer(self):
         layout = QVBoxLayout(self.tab_packer)
 
-        # Top Bar
+        # Top Bar: Seleção de Pasta
         top_layout = QHBoxLayout()
         self.btn_open = QPushButton("Abrir Pasta do Projeto...")
         self.btn_open.clicked.connect(self.open_project)
@@ -55,10 +59,26 @@ class MainWindow(QMainWindow):
         top_layout.addWidget(self.lbl_path, 1)
         layout.addLayout(top_layout)
 
+        # Profile Bar: Seletor de Perfil (Auditoria vs Distribuição)
+        profile_layout = QHBoxLayout()
+        profile_label = QLabel("Perfil:")
+        profile_label.setStyleSheet("font-weight: bold;")
+        self.combo_profile = QComboBox()
+        self.combo_profile.addItem("Auditoria de Código (Completo com Testes e Docs para IAs)", "audit")
+        self.combo_profile.addItem("Distribuição Enxuta (Sem Testes e Docs)", "dist")
+        
+        if self.default_profile == "dist":
+            self.combo_profile.setCurrentIndex(1)
+            
+        self.combo_profile.currentIndexChanged.connect(self._on_profile_changed)
+        profile_layout.addWidget(profile_label)
+        profile_layout.addWidget(self.combo_profile, 1)
+        layout.addLayout(profile_layout)
+
         # Tree View
         self.tree_view = QTreeView()
         self.tree_view.setModel(self.tree_model)
-        self.tree_view.setColumnWidth(0, 400)
+        self.tree_view.setColumnWidth(0, 420)
         layout.addWidget(self.tree_view)
 
         # Status & Counts
@@ -76,8 +96,8 @@ class MainWindow(QMainWindow):
         self.progress_bar.setFixedHeight(10)
         layout.addWidget(self.progress_bar)
 
-        # Bottom Bar
-        self.btn_process = QPushButton("Compactar e Gerar Relatório")
+        # Bottom Bar: Ação Principal
+        self.btn_process = QPushButton("Gerar Contexto (.txt) e Compactar (.zip)")
         self.btn_process.clicked.connect(self.process_project)
         self.btn_process.setEnabled(False)
         layout.addWidget(self.btn_process)
@@ -91,6 +111,13 @@ class MainWindow(QMainWindow):
 
     def get_ignore_patterns(self):
         return self.ignore_rules_widget.get_ignore_patterns()
+
+    def get_current_profile(self) -> str:
+        return self.combo_profile.currentData() or "audit"
+
+    def _on_profile_changed(self):
+        if self.root_path:
+            self._start_scan()
 
     def _on_rules_saved(self):
         if self.root_path:
@@ -115,12 +142,15 @@ class MainWindow(QMainWindow):
         self.path_to_item = {}
         
         ignore_patterns = self.get_ignore_patterns()
+        profile = self.get_current_profile()
         
-        from config.settings import ALLOWED_EXTENSIONS, is_test_file
-        from core.filters import FileFilter
         from core.scanner import Scanner
 
-        file_filter = FileFilter(ignore_patterns, [], [], ALLOWED_EXTENSIONS)
+        file_filter = create_file_filter(
+            profile=profile,
+            custom_ignore_patterns=ignore_patterns,
+            root_path=self.root_path
+        )
         scanner = Scanner(self.root_path, file_filter, is_test_file)
 
         self.scan_worker = ScanWorker(scanner)
@@ -160,12 +190,11 @@ class MainWindow(QMainWindow):
         self.progress_bar.setRange(0, 1)
         self.progress_bar.setValue(1)
         
-        # Recupera as contagens do scanner que injetamos
         total_files = self.scan_worker.scanner.total_files
         total_dirs = self.scan_worker.scanner.total_dirs
         
         self.lbl_counts.setText(f"Pastas: {total_dirs} | Arquivos: {total_files}")
-        self.lbl_status.setText("Varredura concluída. Selecione os arquivos e clique em Compactar.")
+        self.lbl_status.setText("Varredura concluída. Selecione os arquivos e clique em Gerar Contexto.")
         
         # Ordena a árvore inteira automaticamente
         self.tree_model.sort(0, Qt.AscendingOrder)
@@ -174,12 +203,11 @@ class MainWindow(QMainWindow):
         self.btn_process.setEnabled(True)
 
     def _on_item_changed(self, item: QStandardItem):
-        """Propaga o check/uncheck para os filhos e atualiza o pai se necessário."""
+        """Propaga o check/uncheck para os filhos."""
         self.tree_model.itemChanged.disconnect(self._on_item_changed)
         
         state = item.checkState()
         
-        # Propagar para baixo
         def set_children_state(parent: QStandardItem, s: Qt.CheckState):
             for row in range(parent.rowCount()):
                 child = parent.child(row)
@@ -187,21 +215,14 @@ class MainWindow(QMainWindow):
                 set_children_state(child, s)
         
         set_children_state(item, state)
-        
-        # Propagar para cima (Opcional: se todos os filhos desmarcados, desmarca o pai)
-        # Para manter a simplicidade e performance, vamos apenas propagar para baixo.
-        
         self.tree_model.itemChanged.connect(self._on_item_changed)
 
     def process_project(self):
-        # Coletar caminhos selecionados
         selected_paths = []
         
         def collect_checked(item: QStandardItem):
             if item.checkState() == Qt.Checked:
                 selected_paths.append(item.data(Qt.UserRole))
-            # Mesmo se o pai estiver desmarcado, ele pode ter sido PartiallyChecked, mas 
-            # usando 2-states é mais simples. Vamos iterar sobre os filhos.
             for row in range(item.rowCount()):
                 collect_checked(item.child(row))
                 
@@ -219,14 +240,17 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(0)
 
         ignore_patterns = self.get_ignore_patterns()
+        profile = self.get_current_profile()
 
-        from config.settings import ALLOWED_EXTENSIONS
-        from core.filters import FileFilter
         from core.report import ReportGenerator
         from core.compressor import Compressor
         from core.services import ExportProjectService
 
-        file_filter = FileFilter(ignore_patterns, [], [], ALLOWED_EXTENSIONS)
+        file_filter = create_file_filter(
+            profile=profile,
+            custom_ignore_patterns=ignore_patterns,
+            root_path=self.root_path
+        )
         report_generator = ReportGenerator()
         compressor = Compressor()
         export_service = ExportProjectService(report_generator, compressor)
@@ -247,7 +271,3 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Sucesso", message)
         else:
             QMessageBox.critical(self, "Erro", f"Ocorreu um erro:\n{message}")
-
-
-
-
